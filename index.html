@@ -4,17 +4,366 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Eduard Macesanu | Backend Developer</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080c10;
+      --surface: rgba(10, 18, 28, 0.88);
+      --border: rgba(0, 200, 180, 0.15);
+      --accent: #00e5c8;
+      --accent2: #0099ff;
+      --text: #cdd9e5;
+      --muted: #5d7590;
+      --glow: 0 0 32px rgba(0, 229, 200, 0.18);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+      padding: 3rem 1rem 4rem;
+    }
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.5; }
+    .grid-overlay {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0,229,200,0.032) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,200,0.032) 1px, transparent 1px);
+      background-size: 52px 52px;
+    }
+    .scanline {
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,229,200,0.01) 3px, rgba(0,229,200,0.01) 4px);
+    }
+    .vignette {
+      position: fixed; inset: 0; z-index: 3; pointer-events: none;
+      background: radial-gradient(ellipse 75% 75% at 50% 40%, transparent 35%, rgba(8,12,16,0.9) 100%);
+    }
+
+    /* PAGE */
+    .page { position: relative; z-index: 10; width: 100%; max-width: 700px; display: flex; flex-direction: column; gap: 1.2rem; }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2.2rem 2.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55), var(--glow);
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.25} }
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    .hero { text-align: center; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+    .section-card { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+    .section-card:nth-child(2) { animation-delay: 0.08s; }
+    .section-card:nth-child(3) { animation-delay: 0.15s; }
+    .section-card:nth-child(4) { animation-delay: 0.22s; }
+
+    /* BADGE */
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.67rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--accent); background: rgba(0,229,200,0.07);
+      border: 1px solid rgba(0,229,200,0.22); border-radius: 99px;
+      padding: 0.28rem 0.9rem; margin-bottom: 1.5rem;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+      box-shadow: 0 0 6px var(--accent); animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* NAME */
+    .name {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.8rem, 10vw, 4.2rem);
+      font-weight: 900; line-height: 1.0; letter-spacing: -0.03em;
+      margin-bottom: 0.65rem;
+    }
+    .name-first {
+      display: block;
+      background: linear-gradient(135deg, #ffffff 0%, #c8e8e4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .name-last {
+      display: block;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      filter: drop-shadow(0 0 20px rgba(0,229,200,0.45));
+    }
+
+    /* ROLE */
+    .role { font-size: 0.82rem; color: var(--accent2); letter-spacing: 0.06em; min-height: 1.4em; margin-bottom: 0.4rem; }
+    .cursor { display: inline-block; width: 2px; height: 0.9em; background: var(--accent2); vertical-align: middle; margin-left: 2px; animation: blink 0.9s step-end infinite; }
+
+    /* LOCATION */
+    .location { font-size: 0.72rem; color: var(--muted); margin-bottom: 1.8rem; }
+    .location span { color: rgba(93,117,144,0.4); margin: 0 0.35em; }
+
+    /* DIVIDER */
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0 auto 1.6rem; }
+
+    /* ABOUT */
+    .about { font-size: 0.79rem; color: var(--muted); line-height: 1.9; margin-bottom: 1.8rem; }
+    .about strong { color: var(--text); font-weight: 600; }
+
+    /* BUTTON */
+    .btn-wrap { display: flex; justify-content: center; }
+    .button {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      padding: 0.8rem 2rem;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      color: #060a0e; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;
+      text-decoration: none; border-radius: 10px;
+      transition: all 0.22s ease; box-shadow: 0 4px 22px rgba(0,229,200,0.28);
+    }
+    .button:hover { transform: translateY(-3px); box-shadow: 0 8px 36px rgba(0,229,200,0.45); filter: brightness(1.08); }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: 0.63rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+      margin-bottom: 1.3rem; display: flex; align-items: center; gap: 0.65rem;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+    /* STACK */
+    .stack-group { margin-bottom: 1.1rem; }
+    .stack-group:last-child { margin-bottom: 0; }
+    .group-label { font-size: 0.61rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.55rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+    .tag {
+      font-size: 0.69rem; font-weight: 600; padding: 0.27rem 0.7rem;
+      border-radius: 6px; border: 1px solid; transition: all 0.18s ease; cursor: default;
+    }
+    .tag:hover { transform: translateY(-2px); filter: brightness(1.25); }
+
+    .t-cs     { color:#a78bfa; border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.07); }
+    .t-net    { color:#818cf8; border-color:rgba(129,140,248,.3); background:rgba(129,140,248,.07); }
+    .t-java   { color:#fb923c; border-color:rgba(251,146,60,.3);  background:rgba(251,146,60,.07);  }
+    .t-py     { color:#fbbf24; border-color:rgba(251,191,36,.3);  background:rgba(251,191,36,.07);  }
+    .t-ang    { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
+    .t-html   { color:#fb923c; border-color:rgba(251,146,60,.3);  background:rgba(251,146,60,.07);  }
+    .t-css    { color:#60a5fa; border-color:rgba(96,165,250,.3);  background:rgba(96,165,250,.07);  }
+    .t-js     { color:#fbbf24; border-color:rgba(251,191,36,.3);  background:rgba(251,191,36,.07);  }
+    .t-scss   { color:#f472b6; border-color:rgba(244,114,182,.3); background:rgba(244,114,182,.07); }
+    .t-sql    { color:#34d399; border-color:rgba(52,211,153,.3);  background:rgba(52,211,153,.07);  }
+    .t-xml    { color:#a3e635; border-color:rgba(163,230,53,.3);  background:rgba(163,230,53,.07);  }
+    .t-post   { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
+    .t-sf     { color:#38bdf8; border-color:rgba(56,189,248,.3);  background:rgba(56,189,248,.07);  }
+    .t-n8n    { color:#fb923c; border-color:rgba(251,146,60,.3);  background:rgba(251,146,60,.07);  }
+    .t-claude { color:#c084fc; border-color:rgba(192,132,252,.3); background:rgba(192,132,252,.07); }
+    .t-llm    { color:#a78bfa; border-color:rgba(167,139,250,.3); background:rgba(167,139,250,.07); }
+    .t-git    { color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.07); }
+    .t-azure  { color:#38bdf8; border-color:rgba(56,189,248,.3);  background:rgba(56,189,248,.07);  }
+    .t-ps     { color:#818cf8; border-color:rgba(129,140,248,.3); background:rgba(129,140,248,.07); }
+    .t-misc   { color:#34d399; border-color:rgba(52,211,153,.3);  background:rgba(52,211,153,.07);  }
+
+    /* LISTS */
+    .item-list { list-style: none; display: flex; flex-direction: column; gap: 0.72rem; }
+    .item-list li {
+      font-size: 0.78rem; color: var(--muted); line-height: 1.65;
+      padding-left: 1.1rem; position: relative;
+    }
+    .item-list li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); font-size: 0.62rem; top: 0.18em; }
+    .item-list li strong { color: var(--text); font-weight: 600; }
+
+    /* FOOTER */
+    .footer { text-align: center; font-size: 0.62rem; color: rgba(93,117,144,0.32); letter-spacing: 0.1em; padding-top: 0.4rem; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>👨‍💻 Eduard Macesanu</h1>
-    <p>📍 Backend Developer based in Madrid</p>
 
-    <p class="invite">🚀 I'm passionate about building scalable, reliable systems.<br>
-    👉 Check out my GitHub profile to see what I'm working on!</p>
+  <canvas id="bg-canvas"></canvas>
+  <div class="grid-overlay"></div>
+  <div class="scanline"></div>
+  <div class="vignette"></div>
 
-    <a href="https://github.com/EduardMacesanu" target="_blank" class="button">⭐ Visit my GitHub</a>
+  <div class="page">
+
+    <!-- HERO -->
+    <div class="card hero">
+      <div class="badge"><span class="badge-dot"></span> Open to connect</div>
+
+      <h1 class="name">
+        <span class="name-first">Eduard</span>
+        <span class="name-last">Macesanu</span>
+      </h1>
+
+      <div class="role"><span id="typewriter"></span><span class="cursor"></span></div>
+      <div class="location">📍 Madrid, Spain <span>·</span> Financial Sector</div>
+
+      <div class="divider"></div>
+
+      <p class="about">
+        Backend developer specialising in building <strong>robust, scalable, and efficient systems</strong> —
+        designing the logic, architecture, and infrastructure that make applications run fast, securely, and reliably.<br><br>
+        Passionate about <strong>process automation</strong>, <strong>AI tooling</strong>, and full-stack development.
+        Always looking for ways to deliver more value through technology.
+      </p>
+
+      <div class="btn-wrap">
+        <a href="https://github.com/EduardMacesanu" target="_blank" class="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          View GitHub Profile
+        </a>
+      </div>
+    </div>
+
+    <!-- TECH STACK -->
+    <div class="card section-card">
+      <div class="section-title">// tech stack</div>
+
+      <div class="stack-group">
+        <div class="group-label">Backend</div>
+        <div class="tags">
+          <span class="tag t-cs">C#</span>
+          <span class="tag t-net">.NET Core</span>
+          <span class="tag t-java">Java</span>
+          <span class="tag t-py">Python</span>
+        </div>
+      </div>
+
+      <div class="stack-group">
+        <div class="group-label">Frontend</div>
+        <div class="tags">
+          <span class="tag t-ang">Angular</span>
+          <span class="tag t-html">HTML5</span>
+          <span class="tag t-css">CSS3</span>
+          <span class="tag t-js">JavaScript</span>
+          <span class="tag t-scss">SCSS</span>
+        </div>
+      </div>
+
+      <div class="stack-group">
+        <div class="group-label">Data & Integration</div>
+        <div class="tags">
+          <span class="tag t-sql">SQL</span>
+          <span class="tag t-xml">XML</span>
+          <span class="tag t-post">Postman</span>
+          <span class="tag t-sf">Salesforce</span>
+        </div>
+      </div>
+
+      <div class="stack-group">
+        <div class="group-label">Automation & AI</div>
+        <div class="tags">
+          <span class="tag t-n8n">n8n</span>
+          <span class="tag t-claude">Claude Code</span>
+          <span class="tag t-llm">LLM Integration</span>
+        </div>
+      </div>
+
+      <div class="stack-group">
+        <div class="group-label">DevOps & Tools</div>
+        <div class="tags">
+          <span class="tag t-git">Git</span>
+          <span class="tag t-git">GitHub</span>
+          <span class="tag t-git">GitLab</span>
+          <span class="tag t-azure">Azure</span>
+          <span class="tag t-ps">PowerShell</span>
+          <span class="tag t-misc">Android Studio</span>
+          <span class="tag t-misc">FlutterFlow</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKING ON -->
+    <div class="card section-card">
+      <div class="section-title">// what I've been working on</div>
+      <ul class="item-list">
+        <li><strong>Financial sector projects</strong> — building and maintaining backend systems in a professional production environment</li>
+        <li><strong>Process automation with n8n</strong> — designing automated workflows that connect services and reduce manual overhead</li>
+        <li><strong>LLM integration</strong> — leveraging tools like Claude Code to accelerate development and build AI-assisted features</li>
+        <li><strong>Full-stack development</strong> — combining .NET / C# backends with Angular frontends to deliver end-to-end solutions</li>
+        <li><strong>API design & integration</strong> — REST APIs, third-party service integration, and data pipelines</li>
+      </ul>
+    </div>
+
+    <!-- GOALS -->
+    <div class="card section-card">
+      <div class="section-title">// goals</div>
+      <ul class="item-list">
+        <li>Deepen expertise in <strong>.NET / C# architecture</strong> and design patterns</li>
+        <li>Expand knowledge of <strong>distributed systems</strong> and event-driven architectures</li>
+        <li>Push further into <strong>AI tooling</strong> and intelligent process automation</li>
+        <li>Contribute to impactful, <strong>large-scale backend systems</strong></li>
+        <li>Keep growing as a full-stack developer without losing my backend roots</li>
+      </ul>
+    </div>
+
+    <div class="footer">// eduardmacesanu.github.io · 2025</div>
   </div>
+
+  <script>
+    /* CANVAS RAIN */
+    (function () {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let W, H, cols, drops;
+      const CHARS = '01アイウエオカキクケコサシスセソタチツテトナニ{}[]<>/\\|ABCDEFGHIJKLMNOPQRSTUVWXYZ#@%&!?=+*';
+      const FS = 13;
+      const COLORS = ['#00e5c8', '#0099ff', '#7b61ff', '#00b8a0'];
+
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        cols  = Math.floor(W / FS);
+        drops = Array.from({ length: cols }, () => Math.random() * -100);
+      }
+
+      function draw() {
+        ctx.fillStyle = 'rgba(8,12,16,0.065)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = `${FS}px "JetBrains Mono", monospace`;
+        for (let i = 0; i < cols; i++) {
+          ctx.globalAlpha = Math.random() * 0.55 + 0.1;
+          ctx.fillStyle = COLORS[i % COLORS.length];
+          ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], i * FS, drops[i] * FS);
+          if (drops[i] * FS > H && Math.random() > 0.975) drops[i] = 0;
+          drops[i] += 0.35 + Math.random() * 0.25;
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+      setInterval(draw, 48);
+    })();
+
+    /* TYPEWRITER */
+    (function () {
+      const el = document.getElementById('typewriter');
+      const lines = ['Backend Developer', '.NET & C# Engineer', 'API Architect', 'Automation & AI Builder', 'Full-Stack Engineer'];
+      let li = 0, ci = 0, del = false;
+      function tick() {
+        const line = lines[li];
+        if (!del) {
+          el.textContent = line.slice(0, ++ci);
+          if (ci === line.length) { del = true; return setTimeout(tick, 1900); }
+        } else {
+          el.textContent = line.slice(0, --ci);
+          if (ci === 0) { del = false; li = (li + 1) % lines.length; return setTimeout(tick, 380); }
+        }
+        setTimeout(tick, del ? 38 : 72);
+      }
+      setTimeout(tick, 900);
+    })();
+  </script>
 </body>
 </html>
